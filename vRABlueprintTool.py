@@ -16,10 +16,6 @@ from tkinter import Tk, Label, Entry, RIGHT, RAISED, BOTH, StringVar, Text, Scro
 from tkinter.ttk import Style, Frame, Button
 
 
-# vRA service folder names ([security challenges, dynamic exercises, labs])
-services = ["Security Challenges", "Dynamic Exercises", "Labs"]
-
-
 class Window(Tk, Frame):
     def __init__(self):
         Tk.__init__(self)
@@ -283,15 +279,14 @@ class DownloadPage(Frame):
         show_output(self, "Saving list of all blueprints as \'output.json\'")
         data = json.load(open('output.json'))
 
-        show_output(self, "Creating list of useful blueprints (DEs, SCs, Labs)")
+        show_output(self, "Creating list of blueprints")
         start_output(self, "Creating list of blueprints to download")
         for blueprint in data:
-            if (blueprint['name'][-2:] == "DE") or (blueprint['name'][-2:] == "SC") or (blueprint['name'][:3] == "Lab"):
-                makePackage += blueprint['id'] + ","
-                blueprintLog.append(blueprint['name'])
+            makePackage += blueprint['id'] + ","
+            blueprintLog.append(blueprint['name'])
         close_output(self)
 
-        show_output(self, "Saving list of useful blueprints names as \'blueprintLog.txt\'")
+        show_output(self, "Saving list of blueprints names as \'blueprintLog.txt\'")
         with open("blueprintLog.txt", 'w') as f:
             for BP in blueprintLog:
                 f.write(BP + "\n")
@@ -519,7 +514,6 @@ class UploadPage(Frame):
             self.lock = 1
             return
 
-        sort = False
         blueprintID = []
         file = self.filePath_entry.get()
 
@@ -527,7 +521,6 @@ class UploadPage(Frame):
         try:
             with open("blueprintLog.txt", 'r') as f:
                 blueprintID = f.read().splitlines()
-                sort = True
         except IOError:
             show_output(self, "blueprintLog.txt not found, blueprints will not be sorted", error=True)
 
@@ -545,52 +538,6 @@ class UploadPage(Frame):
         for x in range(0, uploadRep):
             cloud_client_run(self, importBlueprints, "Importing Blueprints to vRA ({}/{})".format(x + 1, uploadRep),
                              newLog=True)
-
-        if sort:
-            servicesID = [0, 0, 0]
-            getServices = "cloudclient.bat vra service list --columns name --format JSON --export services.json"
-            cloud_client_run(self, getServices, "Getting current vRA services")
-
-            data = json.load(open('services.json'))
-            for serv in data:
-                if serv['name'] == services[0]:
-                    services[0] = None
-                    servicesID[0] = serv['id']
-                if serv['name'] == services[1]:
-                    services[1] = None
-                    servicesID[1] = serv['id']
-                if serv['name'] == services[2]:
-                    services[2] = None
-                    servicesID[2] = serv['id']
-
-            i = 0
-            show_output(self, "Checking for duplicate services")
-            for serviceName in services:
-                if serviceName is not None:
-                    start_output(self, "Making service {}".format(serviceName))
-                    makeService = "cloudclient.bat vra service add --name \\\"{}\\\" --state ACTIVE".format(serviceName)
-                    rawCMD = subprocess.Popen(makeService, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    rawCMD = rawCMD.stdout.readlines()
-                    servicesID[i] = rawCMD[-1].decode("utf-8")
-                    close_output(self)
-                i += 1
-
-            for item in blueprintID:
-                if item[:3].lower() == "lab":
-                    addBlueprint = "cloudclient.bat vra catalogitem service assign --id {} --serviceid {}"\
-                        .format(item, servicesID[2])
-                    cloud_client_run(self, addBlueprint, "Sorting {}".format(item))
-                    continue
-                if item[-2:].lower() == "de":
-                    addBlueprint = "cloudclient.bat vra catalogitem service assign --id {} --serviceid {}"\
-                        .format(item, servicesID[1])
-                    cloud_client_run(self, addBlueprint, "Sorting {}".format(item))
-                    continue
-                if item[-2:].lower() == "sc":
-                    addBlueprint = "cloudclient.bat vra catalogitem service assign --id {} --serviceid {}"\
-                        .format(item, servicesID[0])
-                    cloud_client_run(self, addBlueprint, "Sorting {}".format(item))
-                    continue
         close_output(self)
 
         show_output(self, "\nUpload Complete")
